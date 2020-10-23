@@ -1,0 +1,30 @@
+---
+  - name: Install and configure PostgresSQL (primary and standby)
+    hosts: databases
+    tasks:
+      - name: Register lsb release
+        command: lsb_release -cs
+        register: lsb_release
+      - name: Create source list file PostgreSQL
+        apt_repository:
+          repo: deb http://apt.postgresql.org/pub/repos/apt {{ lsb_release.stdout }}-pgdg main
+          state: present
+          filename: /etc/apt/sources.list.d
+          update_cache: no
+      - name: Import the repository signing key
+        apt_key:
+          url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          state: present
+      - name: Update the package lists
+        become_user: root
+        apt:
+          update_cache: yes
+      - name: Install the latest version of PostgreSQL
+        apt:
+          name: postgresql
+          state: present
+      - name: Check PostgreSQL is running
+        service:
+          name: postgresql
+          state: started
+          enabled: true

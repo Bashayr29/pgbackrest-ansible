@@ -1,0 +1,34 @@
+---
+  - name: Installation of pgbackrest to databases
+    hosts: databases
+    tasks:
+      - name: Copy pgBackRest binary from build host
+        copy:
+          src: ~/build/pgbackrest-release-2.30/src/pgbackrest
+          dest: /usr/bin
+          mode: 755
+      - name: Create pgBackRest configuration file and directories
+        file:
+          path: /var/log/pgbackrest
+          state: directory
+          owner: postgres
+          group: postgres
+          mode: 770
+      - file:
+          path: /etc/pgbackrest
+          state: directory
+      - file:
+          path: /etc/pgbackrest/conf.d
+          state: directory
+      - copy:
+          content: ""
+          dest: /etc/pgbackrest/pgbackrest.conf
+          force: no
+          mode: 640
+          owner: postgres
+          group: postgres
+      - name: Make sure the installation worked
+        command: pgbackrest
+        register: pgbackrest
+        become_user: postgres
+      - debug: msg="{{ pgbackrest.stdout }}"

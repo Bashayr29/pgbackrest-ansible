@@ -1,0 +1,6 @@
+[databases]
+primary
+standby
+
+[repository]
+repository 
