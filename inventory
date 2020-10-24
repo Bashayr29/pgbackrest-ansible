@@ -1,6 +1,6 @@
 [databases]
-primary
-standby
+pg-primary
+pg-standby
 
 [repository]
 repository 
