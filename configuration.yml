@@ -1,0 +1,26 @@
+---
+  - hosts: databases
+    gather_facts: no
+    become_user: root
+    tasks:
+      - name: Configure archive settings
+        blockinfile:
+          marker: '# {mark} Configure archive settings '
+          path: /etc/postgresql/13/main/postgresql.conf
+          insertafter: 'EOF'
+          block: |
+            archive_command = 'pgbackrest --stanza=demo archive-push %p'
+            archive_mode = on
+            listen_addresses = '*'
+            log_line_prefix = ''
+            max_wal_senders = 3
+            wal_level = replica
+      - blockinfile:
+          path: /etc/postgresql/13/main/postgresql.conf
+          insertafter: '# BEGIN Configure archive settings '
+          block: |
+            hot_standby = on
+            log_filename = 'postgresql.log'
+        delegate_to: pg-standby
+      - name: Re-Start PostgreSQL
+        shell: pg_ctlcluster 13 main restart
