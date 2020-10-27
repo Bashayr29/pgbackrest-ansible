@@ -6,14 +6,14 @@
         copy:
           src: ~/build/pgbackrest-release-2.30/src/pgbackrest
           dest: /usr/bin
-          mode: 755
+          mode: 0755
       - name: Create pgBackRest configuration file and directories
         file:
           path: /var/log/pgbackrest
           state: directory
           owner: postgres
           group: postgres
-          mode: 770
+          mode: 0770
       - file:
           path: /etc/pgbackrest
           state: directory
@@ -24,7 +24,7 @@
           content: ""
           dest: /etc/pgbackrest/pgbackrest.conf
           force: no
-          mode: 640
+          mode: 0640
           owner: postgres
           group: postgres
       - name: Make sure the installation worked
