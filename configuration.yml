@@ -4,23 +4,59 @@
     become_user: root
     tasks:
       - name: Configure archive settings
-        blockinfile:
-          marker: '# {mark} Configure archive settings '
-          path: /etc/postgresql/13/main/postgresql.conf
-          insertafter: 'EOF'
-          block: |
-            archive_command = 'pgbackrest --stanza=demo archive-push %p'
-            archive_mode = on
-            listen_addresses = '*'
-            log_line_prefix = ''
-            max_wal_senders = 3
-            wal_level = replica
-      - blockinfile:
-          path: /etc/postgresql/13/main/postgresql.conf
-          insertafter: '# BEGIN Configure archive settings '
-          block: |
-            hot_standby = on
-            log_filename = 'postgresql.log'
+        lineinfile:
+              dest: /etc/postgresql/13/main/postgresql.conf
+              regexp: "^{{ item.regexp }}"
+              line: "{{ item.line}}"
+        with_items:
+          - { regexp: "^#?listen_addresses =", line: "listen_addresses = '*'" }
+          - { regexp: "^#?archive_command =", line: "archive_command = 'pgbackrest --stanza=main archive-push %p'" }
+          - { regexp: "^#?archive_mode =", line: "archive_mode = on" }
+          - { regexp: "^#?log_line_prefix =", line: "log_line_prefix = ''" }
+          #- { regexp: "^#?max_wal_senders =", line: "max_wal_senders = 3" }
+          - { regexp: "^#?wal_level =", line: "wal_level = replica" }
+        notify: Re-Start PostgreSQL
+      - lineinfile:
+              dest: /etc/postgresql/13/main/postgresql.conf
+              regexp: "^{{ item.regexp }}"
+              line: "{{ item.line}}"
+        with_items:
+          - { regexp: "^#?hot_standby =", line: "hot_standby = on" }
+          - { regexp: "^#?log_filename =", line: "log_filename = 'postgresql.log'" }
         delegate_to: pg-standby
+        notify: Re-Start PostgreSQL
+
+      - name: Configure pgBackRest
+        copy:
+          dest:  /etc/pgbackrest/pgbackrest.conf
+          content: "{{ lookup('file', './configuration/databases/pgbackrest.conf') }}"
+    handlers:
       - name: Re-Start PostgreSQL
         shell: pg_ctlcluster 13 main restart
+
+  - hosts: repository
+    gather_facts: no
+    become_user: root
+    tasks:
+      - name: Configure pgBackRest
+        copy:
+          dest:  /etc/pgbackrest/pgbackrest.conf
+          content: "{{ lookup('file', './configuration/repository/pgbackrest.conf') }}"
+      - name: Create the stanza
+        become_user: pgbackrest
+        command: pgbackrest --stanza=main stanza-create
+        notify: Check the configuration for {{ item }}
+        loop:
+          - databases
+          - repository
+    handlers:
+      - name: Check the configuration for databases
+        become_user: postgres
+        shell: pgbackrest --stanza=main check
+        delegate_to: '{{ item }}'
+        loop:
+          - pg-primary
+          - pg-standby
+      - name: Check the configuration for repository
+        become_user: pgbackrest
+        shell: pgbackrest --stanza=main check

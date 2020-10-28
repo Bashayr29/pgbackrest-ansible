@@ -1,0 +1,22 @@
+---
+  - hosts: pg-primary
+    gather_facts: no
+    become_user: postgres
+    vars:
+      db:
+        - pg-primary
+        - pg-standby
+    tasks:
+      - name: Stop the main cluster
+        shell: pg_ctlcluster 13 main stop
+        delegate_to: '{{ item }}'
+        loop: '{{ db }}'
+        become_user: postgres
+      - name: Perform delta restore
+        shell: pgbackrest --stanza=main --delta restore
+        notify: Restart PostgreSQL
+    handlers:
+      - name: Restart PostgreSQL
+        shell: pg_ctlcluster 13 main start
+        delegate_to: '{{ item }}'
+        loop: '{{ db }}'
